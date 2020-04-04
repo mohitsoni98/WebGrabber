@@ -27,36 +27,46 @@ def get_data(reg_id):
     my_data['status']="NA"
     return my_data
 
-
 def async_get_data(reg_id):
     print("Fetching %s data...."%(reg_id))
-    global data
-    #my_data = {REG_ID:XXX,ROLL_NO:XXX,NAME:XXX,GRADES=[],SGPA=XXX,STATUS=XXX}
-    my_data = {'reg_id':"",'roll_no':"",'name':"",'grades':[],'sgpa':0.0,'status':""}
-    df = pd.read_html(requests.get(base_url+reg_id).content)[-1]
-    #print(df)
-    my_data['name']=df[1][0]
-    my_data['reg_id']=df[1][1]
-    my_data['roll_no']=df[1][2]
-    for i in range(5,17):
-        my_data['grades'].append(df[1][i])
-    my_data['sgpa']=df[0][17].split(" ")[2]
-    my_data['status']="NA"
-    data[reg_id] = my_data
-    #print(data[reg_id])
+    try:
+        global data
+        #my_data = {REG_ID:XXX,ROLL_NO:XXX,NAME:XXX,GRADES=[],SGPA=XXX,STATUS=XXX}
+        my_data = {'reg_id':"",'roll_no':"",'name':"",'grades':[],'sgpa':0.0,'status':""}
+        df = pd.read_html(requests.get(base_url+reg_id).content)[-1]
+        #print(df)
+        my_data['name']=df[1][0]
+        my_data['reg_id']=df[1][1]
+        my_data['roll_no']=df[1][2]
+        for i in range(5,17):
+            my_data['grades'].append(df[1][i])
+        my_data['sgpa']=df[0][17].split(" ")[2]
+        my_data['status']="NA"
+        data[reg_id] = my_data
+        #print(data[reg_id])
+    except Exception as e:
+        print("Error fetching %s"%(reg_id))
+def get_header():
+    print("Getting Headers....")
+    df = pd.read_html(requests.get(base_url).content)[-1]
+    header=df[0].values.tolist()
+    header = header[5:]
+    header = header[:-2]
+    header.insert(0,"SNO")
+    header.insert(1,"REG NO")
+    header.insert(2,"ROLL NO")
+    header.insert(3,"NAME")
+    header.append("SGPA")
+    header.append("RESULT")
+    #print(header)
+    return header
 
-def set_header(sheet,content):
-    sheet.write(0,0,"SNO")
-    sheet.write(0,1,"REG ID")
-    sheet.write(0,2,"ROLL NO")
-    sheet.write(0,3,"NAME")
-    i=4
-    for _ in content['grades']:
-        sheet.write(0,i,"SUBJECT-"+str(i-3))
+def set_header(sheet,header):
+    bold = xlwt.easyxf("font: bold 1")
+    i=0
+    for head in header:
+        sheet.write(0,i,head,bold)
         i+=1
-    sheet.write(0,i,"SGPA")
-    i+=1
-    sheet.write(0,i,"STATUS")
     return sheet
 
 def update_sheet(sheet,row,content):
@@ -92,13 +102,13 @@ try:
     print("Total Entries found:",len(data.keys()))
     wb = xlwt.Workbook(result_file)
     result_sheet = wb.add_sheet("My Sheet")
-    result_sheet = set_header(result_sheet,data[reg_ids[0]])
-    row=0
+    result_sheet = set_header(result_sheet,get_header())
+    row=1
     for reg_id in reg_ids:
         try:
-            row+=1
             result_sheet = update_sheet(result_sheet,row,data[reg_id])
             wb.save(result_file)
+            row+=1
         except:
             print("Error Saving ID:",reg_id)
     print("Results updated successfully!")
